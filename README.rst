@@ -1,5 +1,5 @@
-Chikaterasu
-===========
+Chikaterasu Martini version
+===========================
 
 .. image:: logo.png
    :alt: Chikaterasu logo
