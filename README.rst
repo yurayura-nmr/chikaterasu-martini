@@ -11,7 +11,8 @@ MD parameters are for the martini 2.2 forcfield.
 Usage
 -----
 
-1. ...
+1. Prepare the topology using the martinize python2.7 script (see folder martinize-script).
+2. ...
 
 Misc
 ----
