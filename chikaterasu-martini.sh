@@ -2,16 +2,12 @@
 
 : '
 *************************************************************
-Chikaterasu_m       version dev
-gmx                 tested for versions ....
-                    martini 2.2
-                    
-Last change         see github
-
 Erik Walinda
 Kyoto University
 Graduate School of Medicine
 
+chikaterasu-martini
+tested for martini 2.2 in gromacs 2022 or later
 *************************************************************
 '
 
@@ -19,60 +15,54 @@ Graduate School of Medicine
 *************************************************************
 Manually setup parameters for this run
 Most parameters are defined by mdp files
-The starting PDB file should be placed into gromacs/coord
+
 Debug level 
 
-0   full production MD run [NPT]; no debug
-1   topology generation [pdb2gmx]
-2   solvation
-3   addition of counterions
-    addition of distance restraints; no debug level implemented yet
-4   equilibration
+0   full production MD run [NPT]; script will not stop at intermediate steps.
+1   topology generation [pdb2gmx]; script will stop after topology made.
+2   solvation; script will stop after box solvation.
+3   addition of counterions; script will stop after ions added.
+4   equilibration; script will stop before production MD. 
 
-Requires:
-* top and itp in working folder: e.g.,
-* k48.top | Protein_A+Protein_B.itp
-* martini.itp if adjusted is in chika_mdp folder
+Requires the following files to be prepared for the system of interest. For example in the case of K48-linked diubiquitin:
 
+* ./k48.top - topology file for K48-linked diubiquitin [it will #include another itp file]
+* ./Protein_A+Protein_B.itp - topology with the two ubiquitin chains [created by martinize script]
+* ./chika_mdp/martini.itp - martini forcefield parameters; potentially modified to modify protein-water interactions etc.
+* ./gromacs/cord/k48-cg.pdb - the starting conformation PDB file should be placed into gromacs/coord
 *************************************************************
 '
 
-# == How many runs ? ==
-
-nruns=10                    # 1 for testing; 10 for production
+# == How many independent trajectories shall be simulated ? ==
+nruns=10                    # 1 ... 10
 
 # == Debug level ==
-
 debug_level=1               # Manually set debug level. Or give as argument, e.g.: ./chikaterasu 0
 
-
 # === Box shape and size ===
-
-box_manual=true
-protein_name="k48-CG"
-
-# top/itp must be manually prepared and ready in folder
-top="k48" # name
-
 box_manual=true
 box_dim="7.500   7.500   7.500"
+
+# top/itp must be manually prepared and ready in folder
+protein_name="k48-CG"
+top="k48" # name
 
 
 : '
 *************************************************************
-If well programmed no change should be necessary from here
-Setup directories for the run
+After setting up the above parameters, 
+no manual change should be necessary in the script from here
 *************************************************************
 '
-
 if [ -z "$1" ]
 then
-    read -p "[Chikaterasu] Command line arguments are empty. Using manually set debug level $debug_level." dummy
+    read -p "[Chikaterasu-martini] Command line arguments are empty. Using manually set debug level $debug_level." dummy
 else
-    read -p "[Chikaterasu] Command line arugments provided. Using first argument as debug level $1." dummy
+    read -p "[Chikaterasu-martini] Command line arguments provided. Using first argument as debug level $1." dummy
     debug_level=$1
 fi
 
+# Setup directories for the run
 mkdir -p gromacs
 rm -rf gromacs/top
 rm -rf gromacs/solvation
@@ -92,29 +82,25 @@ mkdir -p custom_analysis
 
 : '
 *************************************************************
-Assuming that the topology has already been set up using martinize
+Assuming that the topology has already been correctly set up using the martinize.py script.
+If not, execute the script before running chikaterasu-martini.
 
-Example for K48 diUb
+For example for K48-linked diubiquitin (need to merge 2 protein chains into one topology):
 python2.7 martinize.py -f 1aar_modified.pdb -o 1aar_modified.top -x 1aar_modified-CG.pdb -dssp dssp -p backbone -merge A,B
 
-Example for monoUb
+Even simpler for monoubiquitin
 python2.7 martinize.py -f 1UBQ.pdb -o single-ubq.top -x 1UBQ-CG.pdb -dssp dssp -p backbone
-
 *************************************************************
 '
 
 : '
 *************************************************************
 [editconf]
-
 Generate box around protein and perform 1 vacuum minimization
 *************************************************************
 '
-
 # Create box with editconf
-
 cd gromacs/coord
-
 gmx editconf -f $protein_name.pdb -d 1.0 -bt triclinic -o $protein_name.gro
 
 if [ "$box_manual" = true ] ; then
@@ -123,7 +109,6 @@ if [ "$box_manual" = true ] ; then
 fi
 
 # Use topology to prepare vacuum minimization
-
 cd ../top/
 cp ../../chika_mdp/martini.itp .
 cp ../../*.top .
@@ -136,21 +121,17 @@ cd ../emin/
 gmx mdrun -deffnm minimization-vac -v
 
 if [ "$debug_level" = 1 ] ; then
-    echo "[Chikaterasu] Debug level 1 set. Exiting after initial topology generation [pdb2gmx]"
+    echo "[Chikaterasu-martini] Debug level 1 set. Exiting after initial topology generation [pdb2gmx]"
     exit 1
 fi
 
-
 : '
 *************************************************************
-Solvate the protein
-
-Perform minization of solvated system
+Solvate the protein and perform minization of solvated system
 *************************************************************
 '
 
 cd ../solvation
-
 cp ../../chika_mdp/water.gro .
 gmx solvate -cp ../emin/minimization-vac.tpr -cs water.gro -radius 0.21 -o system_solvated.gro
 
@@ -174,31 +155,28 @@ fi
 *************************************************************
 Add ions
 
-...
+IONS NOT IMPLEMENTED YET
+In our cases of K48-linked ubiquitin the protein itself was 
+neutral, so no opportunity yet to test ions yet.
 *************************************************************
 '
 
-# IONS NOT IMPLEMENTED YET
-
 if [ "$debug_level" = 3 ] ; then
-    echo "[Chikaterasu] Debug level 3 set. Exiting after adding counterions."
+    echo "[Chikaterasu-martini] Debug level 3 set. Exiting after adding counterions."
     exit 1
 fi
 
-
 cd ../..
-
 
 : '
 *************************************************************
-Start the MD loop
+Start the final equilibration and production MD loop
 *************************************************************
 '
 
 for i in `seq 1 $nruns`;
 
 do
-
     # Equilibration
     cd runs/
     mkdir -p npt
@@ -211,10 +189,9 @@ do
     gmx mdrun -deffnm equilibration -v 
 
     if [ "$debug_level" = 4 ] ; then
-        echo "[Chikaterasu] Debug level 4 set. Exiting after equilibration."
+        echo "[Chikaterasu-martini] Debug level 4 set. Exiting after equilibration."
         exit 1
     fi
-
 
     # 5. Production
     cd ..
@@ -227,13 +204,11 @@ do
     cp ../npt/equilibration.tpr .
 
     gmx grompp -p system_solvated.top -f ../../chika_mdp/dynamic.mdp -o dynamic.tpr -c equilibration.tpr -maxwarn 2
-    #gmx grompp -p system_solvated.top -c equlibration.tpr -f ../../chika_mdp/dynamic.mdp -o dynamic.tpr -maxwarn 1
     gmx mdrun -deffnm dynamic -nb gpu -v 
-    #gmx mdrun -deffnm dynamic -v
 
     cd ../..
    
-    # Copy the data
+    # Move the data into their run directories
     mkdir -p runs/md_$i
     mkdir -p runs/nvt_$i
     mkdir -p runs/npt_$i
@@ -247,8 +222,6 @@ do
     mkdir -p runs/npt
 
     # End the run
-    echo [Chikaterasu] Run $i finished. Yay!
+    echo [Chikaterasu-martini] Run $i finished. Congratulations!
 
 done
-
-exit 1
