@@ -6,7 +6,7 @@ Chikaterasu Martini version
    :align: right
 
 Bash script to automate setup of multiple identical MD simulations.
-MD parameters are for the martini 2.2 forcfield.
+MD parameters are for the martini 2.2 forcefield.
 
 Usage
 -----
