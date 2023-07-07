@@ -2,16 +2,11 @@
 
 : '
 *************************************************************
-Chikaterasu Analysis
+Chikaterasu-martini analysis
 
 Erik Walinda
 Kyoto University
 Graduate School of Medicine
-
-Last change: 2022-3-31
-
-gmx version         2021
-chikaterasu version martini-dev
 *************************************************************
 '
 
@@ -19,35 +14,33 @@ chikaterasu version martini-dev
 *************************************************************
 Manually setup parameters for the run
 What will be analyzed?
-How many runs? 
-etc.
+How many runs? etc.
 *************************************************************
 '
 
 cleanup=true
-sample="noncyclic_ea1_eb1"
 
-# == Most important parameters (most often set wrong :)) ==
+# == Most important parameters (most often set wrong!) ==
 dna=false           # DNA or protein?
-fit=true            # rot_trans fit before analysis. AVOID for RheoMD if studying alignment. Must be true at the moment.
-#pbc=               # fixed for martini
+fit=true            # rot_trans fit before analysis. Avoid this for "rheoMD" etc. if studying protein orientational alignment. Must be true at the moment.
+#pbc=               # this option is fixed for martini runs
 
 # == Where are the data? How many runs? ==
-proc_folder="md_"   # PREFIX for folders, e.g. md for md_1, md_2, ...
-nruns=1             # total number of runs (3 ~ 20)
+proc_folder="md_"   # PREFIX for folder names in ./runs/. Ex: "md_" if the folder names are md_1, md_2, ...
+nruns=1             # total number of runs [1 .. 10]
 anatime=0           # analyze frames starting at time t [ps]
-on_the_fly=true     # analyze a currently active run?
+on_the_fly=false    # analyze a currently active run? (Ex: for quick preliminary checking while run in progress).
 
 # == What to analyze? ==
-# Implement step by step
+# Options to be implemented step by step
 #rmsd=true
 #rmsf=true
 traj=true
-dt=5000              # time interval for various analysis functions [ps]. E.g. traj, hbond
+dt=5000              # time interval for various analysis functions [ps]. Ex: gmx traj, gmx distance ...
 #vmd=false
 #gyration=false      # Calculate R_gyr
 #hbond=false
-distance=true
+distance=true        # Calculate distance between two pseudo-atoms (which atoms is specified below)
 #sasa=false
 #pca=false
 #contactmap=false    # Draw contact map (mean-smallest-distance map)
@@ -56,18 +49,20 @@ distance=true
 
 
 # == Dimers, hexamers or multiple chains? ==
+# To be implemented
 indexFileProvided=false     # give a chika.ndx file in main folder to specify what to analyze
 nchains=1                   # number of chains in the chika.ndx file
 
 : '
 *************************************************************
 For distance calculation.
-Specify the two atoms between which the distance
-is to be calculated from the topology file.
-Splitting into domain of a multidomain protein
-is not necessary for this.
+
+Specify the two atoms between which the distance is to be 
+calculated from the topology file. Splitting into domain of a 
+multidomain protein is not necessary for this.
 *************************************************************
 '
+# Atom numbers in toplogy.
 #distance_name="I44_I20_AC1"
 atom1=93
 atom2=256
@@ -75,8 +70,10 @@ atom2=256
 : '
 """
 Define sample name (easier to keep track of on-the-fly processed filenames)
+For logging of sample, host-pc not yet fully implemented
 """
 '
+sample="noncyclic_ea1_eb1"
 valhost=$(hostname)"_"$sample"_traj.pdb"
 valdist=$(hostname)"_"$sample"_distance.xvg"
 
@@ -85,26 +82,22 @@ valdist=$(hostname)"_"$sample"_distance.xvg"
 Setup directories for the run
 *************************************************************
 '
-
-read -p "[Chikaterasu-dev] Starting analysis." dummy
+read -p "[Chikaterasu-martini] Starting analysis." dummy
 
 if [ "$cleanup" = true ] ; then
-    read -p "[Chikaterasu-dev] Chikaterasu will clean up the results folder to save disk space! Abort if necessary." dummy
+    read -p "[Chikaterasu-martini] Chikaterasu-martini will clean up (= delete) the results folder to save disk space! Abort if necessary." dummy
     rm -rf results
 fi
-
 
 : '
 *************************************************************
 Start the analysis
-Loops over all data
+Loop over all data folders.
 *************************************************************
 '
-
 for i in `seq 1 $nruns`;
 
 do
-
   mkdir -p results
   mkdir -p results/$proc_folder
   mkdir -p results/$proc_folder/rmsd
@@ -131,7 +124,7 @@ do
   *************************************************************
   '
   if [ "$on_the_fly" = true ] ; then
-    read -p "[Chikaterasu-dev] Chikaterasu will try to analyze a currently on-going run! Abort if necessary." dummy
+    read -p "[Chikaterasu-martini] Chikaterasu-martini will try to analyze a currently on-going run! Abort if necessary." dummy
     cp ./runs/md/dynamic.xtc ./results/$proc_folder/
     cp ./runs/md/dynamic.tpr ./results/$proc_folder/
     cd ./results/$proc_folder
@@ -146,69 +139,65 @@ do
   : '
   *************************************************************
   Make NDX file of system
-  If multiple chains, have to split chains at this point
-  See old version of nicoterasu for details
+  If multiple chains, may have to split chains at this point
 
   Currently, a syntax error in make_ndx; but for non-Water
-  this does not seem to matter, since group is alread there?
+  this does not seem to matter, since group is already there?
+
+  Select group 1 (Protein). 
+  Since we may have multiple groups called "protein", this will throw 
+  an error if we select by string right now.
   *************************************************************
   '
-
-  # Step by step
-  # ---- Visualization, PBC etc ----
-  # to see motion. Center on protein and prevent jumping (for k48)
-
   gmx editconf -f ./dynamic.tpr -o ./target.pdb
-
-  # Select group 1 (Protein). Since I have multiple groups called protein, this will throw me an error if I select by string right now.
   printf "1\nq\n" | gmx make_ndx -f ./target.pdb -o ./target.ndx
 
   : '
   *************************************************************
-  Make TPR file of system
-  [non-water atoms]
+  Make TPR file of system i.e., [non-water atoms]
   This is useful for keeping cofactors such as ZN ions in the
   analysis. Choosing protein only here is also OK, but it
   discards such cofactors.
+  
+  Select group 1 (Protein)
   *************************************************************
-  '
-  # Select group 1 (Protein)
+  '  
   printf "1\n1\n" | gmx convert-tpr -s ./dynamic.tpr  -n ./target.ndx -o ./md_target.tpr
 
   : '
   *************************************************************
-  Make XTC file of system
+  Make compressed trajectory file of system
+  
   Create a XTC trajectory file of only the desired part of the
   system, e.g. only protein A or protein B
   This step went wrong in earlier versions (mayuterasu).
   The current implementation should work for 1 protein.
   DNA/protein complexes may require a different setup here
   Keep md_full for other analysis (e.g. protein-solvent IA)
+
+  Visualization, PBC etc. to see motion. 
+  Center on protein and prevent PBC-jumping (for k48).
   *************************************************************
   '
 
   : '
   *************************************************************
   Remove PBC
+  
   This may be tricky for DNA and protein-prtotein complexes.
   See old version of nicoterasu for details.
   For now, only simple protein behaviour is implemented.
-  
-  dt untested
   *************************************************************
   '
-
-  # Remove PBC
   printf "1\n1\n" | gmx trjconv -s ./dynamic.tpr -f ./dynamic.xtc -center -ur compact -pbc nojump -dt $dt -o ./md_target_centered_no_PBC.xtc
-  #printf "1\n1\n" | gmx trjconv -s ./dynamic.tpr -f ./dynamic.xtc -center -ur compact -pbc nojump -o ./md_target_centered_no_PBC.xtc
-
 
   : '
   *************************************************************
   Rot-trans fit
-  Not good for Rheo-MD, since we want to study alignment
+  
+  Not good for Rheo-MD, or other cases where we want to study orientational alignment.
   For normal protein studies, it should be no problem to default this.
-  For DNA, sometimes tricky, see nicoterasu for details
+  For DNA, sometimes tricky.
   *************************************************************
   '
   if [ "$fit" = true ] ; then
@@ -221,30 +210,31 @@ do
   Can start analysis now.
   *************************************************************
   '
-  echo "[Chikaterasu] Run $i of $nruns : Starting analysis..."
+  echo "[Chikaterasu-martini] Run $i of $nruns : Starting analysis ..."
 
   : '
   *************************************************************
   PDB frames
-  Extract PDB frames for pymol analysis.
+  Extract PDB frames for pymol or vmd analysis.
   Choose dt wisely or the file will be huge.
   Splitting the chains for pymol analysis not implemented yet.
   *************************************************************
   '
-  echo "[Chikaterasu] Making PDB trajectory for viewing in Pymol etc."
+  echo "[Chikaterasu-martini] Making PDB trajectory for viewing in Pymol etc."
+  
   if [ "$traj" = true ] ; then
-      printf "1\n1\n" | gmx trjconv -s md_target.tpr -f md_fit.xtc -fit rot+trans -o ./traj/$valhost -conect -dt $dt
+      printf "1\n1\n" | gmx trjconv -s md_target.tpr -f md_fit.xtc -fit rot+trans -o ./traj/traj.pdb -conect -dt $dt
   fi
 
   : '
   *************************************************************
   Distance analysis
-  Atoms are specificed in the options section.
+  Atoms are specificed in the options section above.
   *************************************************************
   : '
   if [ "$distance" = true ] ; then
       rm ./distance/chikaterasu.ndx
-      echo "[ Chikaterasu Distance $atom1 to Residue $atom2 ]" > ./distance/chikaterasu.ndx
+      echo "[Chikaterasu-martini] Distance $atom1 to Residue $atom2 " > ./distance/chikaterasu.ndx
       echo "$atom1 $atom2" >> ./distance/chikaterasu.ndx
 
       printf "0\n" | gmx distance -f ./md_fit.xtc -s ./md_target.tpr -n ./distance/chikaterasu.ndx -oall ./distance/distance.xvg -tu ns -dt $dt
@@ -258,24 +248,6 @@ do
   cd ../..
   mv results/$proc_folder results/$proc_folder$i
 
-  echo "[Chikaterasu] Run $i of $nruns finished!"
+  echo "[Chikaterasu-martini] Run $i of $nruns finished!"
 
 done
-
-exit 1
-
-
-
-
-# ----
-
-# on the fly check distance
-
-# make_ndx as usual
-#gmx distance -f ../dynamic.xtc -s ../dynamic.tpr -oall $valdist -n index.ndx -rmpbc -tu ns
-
-# print max. distance
-#awk 'NR==2{max = $2 + 0; next} {if ($2 > max) max = $2;} END {print max}' $valdist
-
-#or just
-#tail -n 30 distance.xvg
