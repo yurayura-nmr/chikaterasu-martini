@@ -3,36 +3,42 @@ Erik Walinda
 Kyoto University
 Graduate School of Medicine
 
-Last change: 2022/7/28
+Required input files
+--------------------
 
-Required input files:
+* frame-of-interest_to_backcalc.pdb     # the CG structure to be backcalculated [frame of interest out of trajectory]
+* protein-name_atomistic.pdb            # Original atomistic coordinates (non-coarse-grained)
+* dynamic.tpr                           # additionally needed
 
-* ~~~_to_backcalc.pdb   # the CG structure to be backcalculated [frame of interest out of trajectory]
-* ~~~.tpr               # additional parameters [seems to be the same for cyclic/non-cyclic]
-* ~~~_atomistic.pdb     # (to be converted to topology by chikaterasu)
+Preparation
+-----------
 
-
-1. Run ana_chikaterasu_m.sh first to obtain frames of the trajectory with PBC removed.
-   e.g. with settings:
+1. Run ana_chikaterasu-martini.sh first to obtain frames of the trajectory with PBC removed.
+   e.g. edit ana_chikaterasu-martini.sh with the following settings:
+   
    traj=true
    dt=5000
    runs=1
-   distance=true
+
+   and run it:
    
-2. Extract frame of interest (as identified by Pymol or distance analysis)
-   gmx trjconv -f ./md=fit.xtc -s ./md_target.tpr -b 3180 -e 3180 -tu ns -o 0p55_nm_cyclic.pdb -conect
+   ./ana_chikaterasu-martini.sh
+
+   ... which wil yield a PBC-removed coarse-grained trajectory file.
+   
+2. Extract the frame of interest (as identified by Pymol or distance analysis). 
+   Here we are backmapping a single frame, not an entire trajectory.
+   So let's assume as an example the frame is at time t=3180 ns.
+   
+   gmx trjconv -f ./md_fit.xtc -s ./md_target.tpr -b 3180 -e 3180 -tu ns -o 0p55_nm_cyclic.pdb -conect
 
 2. Run the commands outlined below step by step.
 
-3. At initram.sh calculation will start. GROMACS will use the GPU if possible. But driver restart might be necessary.
+3. At initram.sh calculation will start. GROMACS will use the GPU if possible.
 
-Adjusted initram.sh for non-ancient gromacs versions since initram writes its own mdp files.
+In this repository, we adjusted initram.sh for non-ancient gromacs versions since the original initram file writes its own mdp files which will not work in gromacs-2022.
 
-Backward environment currently only set up in Mayuta (misleading path):
-/home/arurun/data/md/20220324_backward/for_sorada/extended_cyclic_18A/chikaterasu-main/chikaterasu_m/backward
-
-
-MDP scripts might still be optimized for GROMACS 2021. They seem old. I.e., I get these warnings:
+Expected notes from GROMACS:
 
 NOTE 1 [file unknown]:
   You are using constraints on all bonds, whereas the forcefield has been
@@ -47,37 +53,45 @@ NOTE 2 [file 4-mdpr-0.0005.mdp]:
 NOTE 3 [file 4-mdpr-0.0005.mdp]:
   You are using a plain Coulomb cut-off, which might produce artifacts.
   You might want to consider using PME electrostatics.
-
 """
 
+# Run these commands step-by-step (not meant to be executed as a single script!)
+
 # 1. Create gro file of CG model using trjconv.
-#              ____________ CG structure ____________                   
+#    This will use the frame of interest that we extracted from the trajectory in the above explanation.
+
+#               (frame-of-interest to be backmapped)
+#              ____________ CG structure ____________
 gmx trjconv -f cyclic_extended_frame1_to_backcalc.pdb -s dynamic.tpr -o cyclic_extended_frame1_to_backcalc-CG.gro 
 
-# 2. In atomistic PDB convert GLQ back to GLY and LYQ back to LYS.
-vi ... # e.g. k48_closed_atomistic.pdb
-:%s/LYQ/LYS/g
-:%s/GLQ/GLY/g
+# (1b). Most cases probably can skip this step.
+#       In the special case of diubiquitin, LYQ and GLQ were used as isopeptide-linked amino acid names.
+#       These need to changed back before backmapping.
+#       Convert GLQ back to GLY and LYQ back to LYS.
 
-# 3. Run "chikaterasu 1" to obtain atomistic topology (CHARMM27 forcefield).
-# go back to chikaterasu folder (non-martini version)
+# vi ... # e.g. k48_closed_atomistic.pdb
+# :%s/LYQ/LYS/g
+# :%s/GLQ/GLY/g
 
-cd ..
-cd ..
+# 2. Obtain the atomistic topology under the CHARMM27 forcefield for the system of interest.
+#    i.e., the top file, not the orginal pdb file.
+#    This can be easily done using gmx2pdb or using chikaterasu (the non-martini version) as follows:
+#    Run "./chikaterasu 1" to obtain atomistic topology (CHARMM27 forcefield).
 ./chikaterasu.sh 1
-cp gromacs/top/topol.top chikaterasu_m/backward/
 
-# 4. Run "chikaterasu 5" to obtain the file posre.itp (used by BACKWARD).
+# and copy the resulting atomistic topology to the working folder of the backward script.
+cp chikaterasu/gromacs/top/topol.top chikaterasu-martini/backward-script/
 
+# 3. We also need the position restraint file (used by backward).
+#    This is also easily obtained by chikaterasu (debug level 5).
 ./chikaterasu.sh 5
-cp gromacs/top/posre.itp chikaterasu_m/backward/
+cp chikaterasu/gromacs/top/posre.itp chikaterasu-martini/backward-script/
 
-# 5. Try to run initram:
-
-# needs py27
-# conda create --name py27 python=2.7
+# 4. Try to run initram:
+#    This requires python 2.7, so need to activate or set up an environment:
+#    conda create --name py27 python=2.7
 
 conda activate py27
-./aru_initram.sh -f cyclic_extended_frame1_to_backcalc-CG.gro -o aa_charmm.gro -to charmm36 -p ./topol.top
+./chika_initram.sh -f frame-of-interest_to_backcalc-CG.gro -o aa_charmm.gro -to charmm36 -p ./topol.top
 
-# And visualize the output as usual (aa_charmm.gro).
+# If all runs well, we can then visualize the atomistic structure (in gro format9 as usual (vmd or pymol).
