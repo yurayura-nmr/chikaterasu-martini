@@ -2,7 +2,7 @@
 
 mkdir -p final_results
 
-./aru_initram.sh -f 1p30_nm_cyclic-CG_to_backcalc.gro -o aa_charmm.gro -to charmm36 -p ./topol.top 
+./chika_initram.sh -f 1p30_nm_cyclic-CG_to_backcalc.gro -o aa_charmm.gro -to charmm36 -p ./topol.top 
 mv aa_charmm.gro final_results/1p30_nm_backcalculated.gro
 
 # can add more back calculation runs here
