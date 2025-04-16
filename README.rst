@@ -1,46 +1,99 @@
-Chikaterasu Martini version
-===========================
+Sure! Here's a polished and professional rewrite of your documentation in **Markdown** (`.md`) format, tailored for a programmer audience:
 
-.. image:: logo.png
-   :alt: Chikaterasu logo
-   :align: right
+---
 
-Bash script to automate setup of multiple identical MD simulations.
-MD parameters are for the martini 2.2 forcefield.
+# Chikaterasu Martini Version
 
-Usage
------
+![Chikaterasu Logo](logo.png)
 
-1. Prepare the topology using the martinize python2.7 script (see folder martinize-script).
+> Bash script to automate setup of multiple identical MD simulations.  
+> Compatible with the **Martini 2.2** force field.
 
+---
+
+## 📦 Setup Instructions
+
+### 1. Generate the Topology
+
+Use the `martinize` script with Python 2.7. You can set up a dedicated conda environment for this:
+
+```bash
 conda create -n py27 python=2.7
 conda activate py27
+```
 
+Run the `martinize.py` script:
+
+```bash
 python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
+```
 
+---
 
-2. Prepare the coarse-grained protein structure file in ./gromacs/coord/
+### 2. Prepare GROMACS Input Files
 
+Move the generated files into the expected GROMACS directories:
+
+```bash
 cp Abeta-CG.pdb ../gromacs/coord/
 cp martinize-script/Abeta.top .
+cp martinize-script/Protein_A.itp .
+```
 
-3. Run: ./chikaterasu-martini 1 [This will test if topology can be generated correctly in gromacs]
-4. Run: ./chikaterasu-martini 2 [This will test if solvation worked fine]
-5. Run: ./chikaterasu-martini 3 [This will test if counterions were correctly added (not yet implemented)]
-6. Run: ./chikaterasu-martini 4 [This will test if a short equilibration MD trajectory can be obtained in gromacs]
-7. Run: ./chikaterasu-martini 0 [This will assume everything so far went well and go to the actual production MD run]
+---
 
-MD parameters are adjusted by editing the gromacs .mdp files in the chika_mdp directory.
+## 🚀 Simulation Workflow
 
-Misc
-----
+Run the automation script in stages:
 
-Change log
-""""""""""
+```bash
+./chikaterasu-martini 1
+```
 
-See github commits
+- ✅ **Step 1**: Validates topology generation in GROMACS
 
-To do
-"""""
+```bash
+./chikaterasu-martini 2
+```
 
-See issues
+- ✅ **Step 2**: Tests solvation
+
+```bash
+./chikaterasu-martini 3
+```
+
+- 🚧 **Step 3**: Checks counterion addition (not yet implemented)
+
+```bash
+./chikaterasu-martini 4
+```
+
+- ✅ **Step 4**: Runs a short equilibration trajectory
+
+```bash
+./chikaterasu-martini 0
+```
+
+- ✅ **Step 0**: Launches the full production MD run, assuming prior steps succeeded
+
+---
+
+## ⚙️ MD Parameters
+
+Simulation parameters can be customized by editing the `.mdp` files in the `chika_mdp/` directory.
+
+---
+
+## 📚 Miscellaneous
+
+### 📝 Change Log
+
+See [GitHub commit history](#) for detailed changes.
+
+### 📌 To-Do
+
+Refer to the [GitHub Issues](#) page for outstanding tasks and feature requests.
+
+---
+
+Let me know if you'd like this formatted into a `README.md`, have links to insert, or want badges added (like license, Python version, etc.)!
