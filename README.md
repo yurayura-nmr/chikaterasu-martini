@@ -1,7 +1,3 @@
-Sure! Here's a polished and professional rewrite of your documentation in **Markdown** (`.md`) format, tailored for a programmer audience:
-
----
-
 # Chikaterasu Martini Version
 
 ![Chikaterasu Logo](logo.png)
