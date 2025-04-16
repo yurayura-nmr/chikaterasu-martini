@@ -158,12 +158,64 @@ neutral, so no opportunity yet to test ions yet.
 *************************************************************
 '
 
+cd ../ions/
+
+gmx grompp -f ../../chika_mdp/equilibration.mdp -p ../top/system_solvated.top -c ../solvation/system_solvated.gro -o genion.tpr -maxwarn 2
+gmx genion -s genion.tpr -pname NA+ -nname CL- -neutral -o ions_added.gro
+
+# Update names to avoid mismatch downstream
+#awk '{if ($2 == "NA") $2 = "NA+"; print}' ions_added.gro > temp && mv temp ions_added.gro
+
+awk '
+NR <= 2 { print; next }
+
+NF == 6 {
+    resnum   = substr($0,  1, 5)
+    resname  = substr($0,  6, 5)
+    atomname = substr($0, 11, 5)
+    atomnum  = substr($0, 16, 5)
+    x        = substr($0, 21, 8)
+    y        = substr($0, 29, 8)
+    z        = substr($0, 37, 8)
+
+    # If atom name is exactly " NA", replace with "NA+"
+    if (atomname ~ /^ *NA$/) {
+        atomname = " NA+"
+    }
+
+    printf "%s%s%s%s%s%s%s\n", resnum, resname, atomname, atomnum, x, y, z
+    next
+}
+
+{ print }
+' ions_added.gro >temp && mv temp ions_added.gro
+
+#cd ../..
+
+# Solution minimization again with ions
+cd ../emin
+
+# Now we need to count (and as of now manually add) how many ions we added
+cp ../top/system_solvated.top ../top/system_solvated_ions.top
+#exit 1
+
+# Na: 0 --> 3
+# W : N --> N-3
+echo "\nNA+\t\t3" >>../top/system_solvated_ions.top
+
+sed -i '3i#include "../../chika_mdp/martini_v2.0_ions.itp"' ../top/system_solvated_ions.top
+awk '/^\s*W[ \t]+[0-9]+/ {$2 = $2 - 3} {print}' ../top/system_solvated_ions.top >temp && mv temp ../top/system_solvated_ions.top
+
+gmx grompp -p ../top/system_solvated_ions.top -c ../ions/ions_added.gro -f ../../chika_mdp/minimization.mdp -o minimization-sol.tpr
+
+gmx mdrun -deffnm minimization-sol -v
+
+cd ../..
+
 if [ "$debug_level" = 3 ]; then
     echo "[Chikaterasu-martini] Debug level 3 set. Exiting after adding counterions."
     exit 1
 fi
-
-cd ../..
 
 : '
 *************************************************************
