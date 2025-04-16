@@ -12,7 +12,18 @@ Usage
 -----
 
 1. Prepare the topology using the martinize python2.7 script (see folder martinize-script).
+
+conda create -n py27 python=2.7
+conda activate py27
+
+python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
+
+
 2. Prepare the coarse-grained protein structure file in ./gromacs/coord/
+
+cp Abeta-CG.pdb ../gromacs/coord/
+cp martinize-script/Abeta.top .
+
 3. Run: ./chikaterasu-martini 1 [This will test if topology can be generated correctly in gromacs]
 4. Run: ./chikaterasu-martini 2 [This will test if solvation worked fine]
 5. Run: ./chikaterasu-martini 3 [This will test if counterions were correctly added (not yet implemented)]
