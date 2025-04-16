@@ -21,6 +21,7 @@ conda activate py27
 Run the `martinize.py` script:
 
 ```bash
+cd martinize-script
 python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
 ```
 
@@ -32,8 +33,8 @@ Move the generated files into the expected GROMACS directories:
 
 ```bash
 cp Abeta-CG.pdb ../gromacs/coord/
-cp martinize-script/Abeta.top .
-cp martinize-script/Protein_A.itp .
+cp Abeta.top ..
+cp Protein_A.itp ..
 ```
 
 ---
