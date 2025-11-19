@@ -72,13 +72,13 @@ Run the automation script in stages:
 - ✅ **Step 1**: Validates topology generation in GROMACS
 
 ```bash
-./chikaterasu-martini 2
+./chikaterasu-martini.sh 2
 ```
 
 - ✅ **Step 2**: Tests solvation
 
 ```bash
-./chikaterasu-martini 3
+./chikaterasu-martini.sh 3
 ```
 
 - 🚧 **Step 3**: Checks counterion addition (not yet implemented)
