@@ -5,6 +5,8 @@
 > Bash script to automate setup of multiple identical MD simulations.  
 > Compatible with the **Martini 2.2** force field.
 
+**Prerequisite**: Install Anaconda or Miniconda for Python environment management before proceeding.
+
 ---
 
 ## 📦 Setup Instructions
