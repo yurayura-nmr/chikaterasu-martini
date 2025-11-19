@@ -31,6 +31,18 @@ python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
 
 ---
 
+### 2. Prepare GROMACS Input Files
+
+Move the generated files into the expected GROMACS directories:
+
+```bash
+cp Abeta-CG.pdb ../gromacs/coord/
+cp Abeta.top ..
+cp Protein_A.itp ..
+```
+
+---
+
 ### 3. Configuration
 
 #### Edit Script Variables
@@ -46,18 +58,6 @@ For optimal solvation, determine appropriate box dimensions:
 4. Note the box dimensions listed at the bottom of the file
 5. Apply these same dimensions to the Martini version simulation parameters
 
-
----
-
-### 2. Prepare GROMACS Input Files
-
-Move the generated files into the expected GROMACS directories:
-
-```bash
-cp Abeta-CG.pdb ../gromacs/coord/
-cp Abeta.top ..
-cp Protein_A.itp ..
-```
 
 ---
 
