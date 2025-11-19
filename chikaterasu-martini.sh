@@ -1,58 +1,64 @@
 #!/bin/sh
 
-: '
-*************************************************************
-Erik Walinda
-Kyoto University
-Graduate School of Medicine
+# =============================================================================
+# Chikaterasu Martini - Automated Coarse-Grained MD Setup
+# 
+# Author: Erik Walinda
+# Affiliation: Kyoto University, Graduate School of Medicine
+# 
+# Description: Automated setup for Martini 2.2 force field simulations
+# Tested with: GROMACS 2022, 2025
+# Repository: https://github.com/yurayura-nmr/chikaterasu-martini
+# =============================================================================
 
-chikaterasu-martini
-tested for martini 2.2 in gromacs 2022 or later
-*************************************************************
-'
+# =============================================================================
+# CONFIGURATION PARAMETERS
+# 
+# Modify these variables to configure your simulation run.
+# Most MD parameters are defined in the mdp files.
+# =============================================================================
 
-: '
-*************************************************************
-Manually setup parameters for this run
-Most parameters are defined by mdp files
+# Debug level controls execution stopping points:
+#   0 - Full production MD run [NPT]; no intermediate stops
+#   1 - Stop after topology generation [pdb2gmx]
+#   2 - Stop after solvation
+#   3 - Stop after counterion addition  
+#   4 - Stop before production MD (after equilibration)
+debug_level=1
 
-Debug level
+# Number of independent trajectories to simulate (range: 1-10)
+nruns=1
 
-0   full production MD run [NPT]; script will not stop at intermediate steps.
-1   topology generation [pdb2gmx]; script will stop after topology made.
-2   solvation; script will stop after box solvation.
-3   addition of counterions; script will stop after ions added.
-4   equilibration; script will stop before production MD.
-
-Requires the following files to be prepared for the system of interest. For example in the case of K48-linked diubiquitin:
-
-* ./k48.top - topology file for K48-linked diubiquitin [it will #include another itp file]
-* ./Protein_A+Protein_B.itp - topology with the two ubiquitin chains [created by martinize script]
-* ./chika_mdp/martini.itp - martini forcefield parameters; potentially modified to modify protein-water interactions etc.
-* ./gromacs/cord/k48-cg.pdb - the starting conformation PDB file should be placed into gromacs/coord
-*************************************************************
-'
-
-# == How many independent trajectories shall be simulated ? ==
-nruns=1 # 1 ... 10
-
-# == Debug level ==
-debug_level=1 # Manually set debug level. Or give as argument, e.g.: ./chikaterasu 0
-
-# === Box shape and size ===
+# Manual box dimensions configuration
+# Set to false for automatic box size calculation
 box_manual=true
 box_dim="7.500   7.500   7.500"
 
-# top/itp must be manually prepared and ready in folder
-protein_name="Abeta-CG"
-top="Abeta" # name
+# File naming conventions
+protein_name="Abeta-CG"  # PDB filename (without extension)
+top="Abeta"              # Topology filename (without extension)
 
-: '
-*************************************************************
-After setting up the above parameters,
-no manual change should be necessary in the script from here
-*************************************************************
-'
+# =============================================================================
+# SIMULATION PREREQUISITES
+#
+# Required files for system setup:
+#   - ./gromacs/coord/${protein_name}.pdb     : Starting conformation
+#   - ./${top}.top                            : Main topology file
+#   - ./Protein_A+Protein_B.itp               : Protein chain topologies
+#   - ./chika_mdp/martini.itp                 : Martini forcefield parameters
+#
+# Example for K48-linked diubiquitin:
+#   - ./k48.top
+#   - ./Protein_A+Protein_B.itp  
+#   - ./gromacs/coord/k48-cg.pdb
+# =============================================================================
+
+# =============================================================================
+# COMMAND LINE ARGUMENT PARSING
+#
+# If debug level is provided as command line argument, it overrides the
+# configured value above.
+# =============================================================================
 if [ -z "$1" ]; then
     read -p "[Chikaterasu-martini] Command line arguments are empty. Using manually set debug level $debug_level." dummy
 else
@@ -60,7 +66,12 @@ else
     debug_level=$1
 fi
 
-# Setup directories for the run
+# =============================================================================
+# DIRECTORY STRUCTURE SETUP
+#
+# Creates and cleans necessary directory structure for simulation files.
+# Previous run directories are removed to ensure clean state.
+# =============================================================================
 mkdir -p gromacs
 rm -rf gromacs/top
 rm -rf gromacs/solvation
@@ -78,35 +89,44 @@ mkdir -p runs/npt
 mkdir -p runs/md
 mkdir -p custom_analysis
 
-: '
-*************************************************************
-Assuming that the topology has already been correctly set up using the martinize.py script.
-If not, execute the script before running chikaterasu-martini.
+# =============================================================================
+# TOPOLOGY GENERATION NOTE
+#
+# IMPORTANT: This script assumes topology has been pre-generated using martinize.py
+# 
+# Example commands for topology generation:
+#   K48-linked diubiquitin (merged chains):
+#     python2.7 martinize.py -f 1aar_modified.pdb -o 1aar_modified.top \
+#              -x 1aar_modified-CG.pdb -dssp dssp -p backbone -merge A,B
+#
+#   Monoubiquitin:
+#     python2.7 martinize.py -f 1UBQ.pdb -o single-ubq.top \
+#              -x 1UBQ-CG.pdb -dssp dssp -p backbone
+# =============================================================================
 
-For example for K48-linked diubiquitin (need to merge 2 protein chains into one topology):
-python2.7 martinize.py -f 1aar_modified.pdb -o 1aar_modified.top -x 1aar_modified-CG.pdb -dssp dssp -p backbone -merge A,B
+# =============================================================================
+# BOX CREATION AND VACUUM MINIMIZATION
+#
+# Steps:
+#   1. Create simulation box around protein using editconf
+#   2. Optionally apply manual box dimensions
+#   3. Prepare and run vacuum energy minimization
+# =============================================================================
 
-Even simpler for monoubiquitin
-python2.7 martinize.py -f 1UBQ.pdb -o single-ubq.top -x 1UBQ-CG.pdb -dssp dssp -p backbone
-*************************************************************
-'
+echo "[Chikaterasu-martini] Creating simulation box and running vacuum minimization..."
 
-: '
-*************************************************************
-[editconf]
-Generate box around protein and perform 1 vacuum minimization
-*************************************************************
-'
-# Create box with editconf
+# Create initial simulation box
 cd gromacs/coord
 gmx editconf -f $protein_name.pdb -d 1.0 -bt triclinic -o $protein_name.gro
 
+# Apply manual box dimensions if configured
 if [ "$box_manual" = true ]; then
     sed -i '$ d' $protein_name.gro
     echo "$box_dim" >>$protein_name.gro
+    echo "[Chikaterasu-martini] Applied manual box dimensions: $box_dim"
 fi
 
-# Use topology to prepare vacuum minimization
+# Prepare vacuum minimization run
 cd ../top/
 cp ../../chika_mdp/martini.itp .
 cp ../../*.top .
@@ -114,13 +134,14 @@ cp ../../*.itp .
 
 gmx grompp -p $top.top -f ../../chika_mdp/minimization.mdp -c ../coord/$protein_name.gro -o ../emin/minimization-vac.tpr
 
-# Vacuum minimization
+# Execute vacuum minimization
 cd ../emin/
 gmx mdrun -deffnm minimization-vac -v
 
+# Exit if debug level 1 (stop after topology generation)
 if [ "$debug_level" = 1 ]; then
-    echo "[Chikaterasu-martini] Debug level 1 set. Exiting after initial topology generation [pdb2gmx]"
-    exit 1
+    echo "[Chikaterasu-martini] Debug level 1 reached - exiting after topology generation"
+    exit 0
 fi
 
 : '
