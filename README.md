@@ -1,6 +1,8 @@
 # Chikaterasu Martini Version
 
-![Chikaterasu Logo](logo.png)
+**C**ommand-line **H**elper for **I**nstalling **K**ernel-**A**ccelerated **T**hermodynamic **E**xploration **R**uns **A**nd **S**etting **U**p
+
+<img src="logo.png" alt="Chikaterasu logo" align="right" />
 
 > Bash script to automate setup of multiple identical MD simulations.  
 > Compatible with the **Martini 2.2** force field.
