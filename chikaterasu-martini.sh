@@ -144,29 +144,51 @@ if [ "$debug_level" = 1 ]; then
     exit 0
 fi
 
-: '
-*************************************************************
-Solvate the protein and perform minization of solvated system
-*************************************************************
-'
+# =============================================================================
+# SYSTEM SOLVATION AND SOLVATED MINIMIZATION
+#
+# Steps:
+#   1. Solvate the protein in Martini water beads
+#   2. Update topology with water bead count
+#   3. Perform energy minimization of solvated system
+# =============================================================================
 
+echo "[Chikaterasu-martini] Solvating system and minimizing solvated structure..."
+
+# Copy water structure file and solvate system
 cd ../solvation
 cp ../../chika_mdp/water.gro .
 gmx solvate -cp ../emin/minimization-vac.tpr -cs water.gro -radius 0.21 -o system_solvated.gro
 
-# Now we need to count how many waters we added
+# =============================================================================
+# TOPOLOGY WATER COUNT UPDATE
+#
+# The solvation step adds water beads that must be reflected in the topology.
+# We automatically count the number of water beads (W) added and append
+# the count to the system topology file.
+# =============================================================================
+
 cp ../top/$top.top ../top/system_solvated.top
 echo -n "\nW\t\t" >>../top/system_solvated.top
 grep -c W system_solvated.gro >>../top/system_solvated.top
 
-# Solution minimization
+echo "[Chikaterasu-martini] Updated topology with water bead count"
+
+# =============================================================================
+# SOLVATED SYSTEM MINIMIZATION
+#
+# Perform energy minimization of the solvated system to remove any
+# steric clashes or unfavorable interactions introduced during solvation.
+# =============================================================================
+
 cd ../emin
 gmx grompp -p ../top/system_solvated.top -c ../solvation/system_solvated.gro -f ../../chika_mdp/minimization.mdp -o minimization-sol.tpr
 gmx mdrun -deffnm minimization-sol -v
 
+# Debug level 2 exit point - stop after successful solvation
 if [ "$debug_level" = 2 ]; then
-    echo "[Chikaterasu] Debug level 2 set. Exiting after solvation."
-    exit 1
+    echo "[Chikaterasu-martini] Debug level 2 reached - exiting after solvation"
+    exit 0
 fi
 
 : '
