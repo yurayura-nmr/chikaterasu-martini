@@ -29,6 +29,24 @@ python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
 
 ---
 
+### 3. Configuration
+
+#### Edit Script Variables
+Open `chikaterasu-martini.sh` and set the following variables at the top of the script:
+- **Protein name**: Set to your PDB filename (without extension)
+- **Topology name**: Set to your generated .top filename
+
+#### Determine Box Size
+For optimal solvation, determine appropriate box dimensions:
+1. Use the all-atom Chikaterasu script temporarily **only for the solvation step**
+2. Run: `./chikaterasu.sh 2` (stops after solvation)
+3. Check the generated `*_newbox.gro` file in `gromacs/solvation/`
+4. Note the box dimensions listed at the bottom of the file
+5. Apply these same dimensions to the Martini version simulation parameters
+
+
+---
+
 ### 2. Prepare GROMACS Input Files
 
 Move the generated files into the expected GROMACS directories:
@@ -46,7 +64,7 @@ cp Protein_A.itp ..
 Run the automation script in stages:
 
 ```bash
-./chikaterasu-martini 1
+./chikaterasu-martini.sh 1
 ```
 
 - ✅ **Step 1**: Validates topology generation in GROMACS
