@@ -26,7 +26,7 @@ Run the `martinize.py` script:
 
 ```bash
 cd martinize-script
-python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone
+python2.7 martinize.py -f Abeta.pdb -o Abeta.top -x Abeta-CG.pdb -p backbone -elastic -ef 500 -el 0.5 -eu 0.9 -ea 0 -ep 0
 ```
 
 ---
